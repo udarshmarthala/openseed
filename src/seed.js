@@ -70,6 +70,7 @@
       incrementRun(taskId);
     } else {
       saveTask(taskId, currentSequence, location.href);
+      incrementRun(taskId); // first observation counts as run 1
     }
 
     notifyUI();
