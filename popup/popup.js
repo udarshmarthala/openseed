@@ -1,7 +1,5 @@
 'use strict';
 
-const STATE_ICON = { seed: '🌱', sprout: '🌿', tree: '🌳' };
-
 let paused = false;
 
 async function getActiveTab() {
@@ -15,12 +13,10 @@ async function sendMsg(type) {
   chrome.tabs.sendMessage(tab.id, { type }).catch(() => {});
 }
 
-// Read tasks from active tab's localStorage via scripting API
 async function loadTasks() {
   const tab = await getActiveTab();
   if (!tab) return [];
 
-  // chrome://, about:, extension pages block scripting
   if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('about:')) {
     renderUnavailable();
     return [];
@@ -49,7 +45,8 @@ async function loadTasks() {
 function shortUrl(url) {
   try {
     const u = new URL(url);
-    return u.hostname + u.pathname;
+    const path = u.pathname === '/' ? '' : u.pathname;
+    return u.hostname + path;
   } catch {
     return url;
   }
@@ -57,34 +54,48 @@ function shortUrl(url) {
 
 function renderUnavailable() {
   document.getElementById('task-list').innerHTML =
-    '<div class="empty">Open Seed can\'t run on this page.<br>Navigate to any website to see tasks.</div>';
+    `<div class="empty"><span class="empty-icon">⊘</span>Can't run on this page.<br>Navigate to any website.</div>`;
 }
 
 function renderTasks(tasks) {
   const list = document.getElementById('task-list');
+  const footer = document.getElementById('footer');
 
   if (!tasks.length) {
-    list.innerHTML = '<div class="empty">No tasks recorded yet.<br>Browse and interact normally.</div>';
+    list.innerHTML =
+      `<div class="empty"><span class="empty-icon">∅</span>No tasks recorded yet.<br>Browse normally to begin.</div>`;
+    footer.style.display = 'none';
     return;
   }
 
-  list.innerHTML = tasks.map(t => `
-    <div class="task-item" data-id="${encodeURIComponent(t.id)}">
-      <span class="task-icon">${STATE_ICON[t.state]}</span>
-      <div class="task-info">
-        <div class="task-url">${shortUrl(t.url || t.id)}</div>
-        <div class="task-meta">${t.steps} steps · ${t.runs} run${t.runs !== 1 ? 's' : ''}</div>
-      </div>
-      <span class="task-state ${t.state}">${t.state}</span>
-      <button class="delete-btn" title="Delete task" data-id="${encodeURIComponent(t.id)}">×</button>
-    </div>
-  `).join('');
+  footer.style.display = 'flex';
+  document.getElementById('stat-tasks').textContent = tasks.length;
+  document.getElementById('stat-trees').textContent = tasks.filter(t => t.state === 'tree').length;
+  document.getElementById('stat-runs').textContent = tasks.reduce((s, t) => s + t.runs, 0);
 
-  list.querySelectorAll('.delete-btn').forEach(btn => {
+  list.innerHTML = tasks.map(t => {
+    const pct = Math.min(100, Math.round((t.runs / 10) * 100));
+    const id = encodeURIComponent(t.id);
+    return `
+      <div class="task-item" data-state="${t.state}" data-id="${id}">
+        <div class="task-url" title="${t.url || ''}">${shortUrl(t.url || t.id)}</div>
+        <button class="task-delete" title="Delete" data-id="${id}">×</button>
+        <div class="task-progress-wrap">
+          <div class="task-progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="task-meta">
+          <span class="task-state-pill">${t.state}</span>
+          <span class="task-runs"><strong>${t.runs}</strong>/10 runs</span>
+          <span class="task-steps">${t.steps} steps</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('.task-delete').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const taskId = decodeURIComponent(btn.dataset.id);
-      await deleteTask(taskId);
+      await deleteTask(decodeURIComponent(btn.dataset.id));
       await render();
     });
   });
@@ -93,7 +104,6 @@ function renderTasks(tasks) {
 async function deleteTask(taskId) {
   const tab = await getActiveTab();
   if (!tab) return;
-
   await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: (id) => {
@@ -109,20 +119,21 @@ async function deleteTask(taskId) {
 
 async function render() {
   const tasks = await loadTasks();
-  renderTasks(tasks);
+  if (tasks.length) renderTasks(tasks);
 }
 
-// --- Controls ---
+// ── Controls ──
 
 document.getElementById('btn-pause').addEventListener('click', () => {
   paused = !paused;
+  const btn = document.getElementById('btn-pause');
   sendMsg(paused ? 'OPENSEED_PAUSE' : 'OPENSEED_RESUME');
-  document.getElementById('btn-pause').textContent = paused ? '▶ Resume' : '⏸ Pause';
+  btn.textContent = paused ? '▶ Resume' : '⏸ Pause';
+  btn.classList.toggle('active', paused);
 });
 
 document.getElementById('btn-clear').addEventListener('click', async () => {
   await sendMsg('OPENSEED_CLEAR');
 });
 
-// --- Boot ---
 render();

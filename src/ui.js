@@ -1,15 +1,17 @@
 (() => {
   'use strict';
 
-  const STATE_LABELS = { seed: '🌱', sprout: '🌿', tree: '🌳' };
+  const STATE_LABELS = { seed: 'SEED', sprout: 'SPROUT', tree: 'TREE' };
   const STATE_HINTS  = {
-    seed:   'Recording… keep going',
-    sprout: 'Seen a few times — suggestions coming',
-    tree:   'Press Enter to run automatically',
+    seed:   'observing',
+    sprout: 'learning',
+    tree:   '↵ to run',
   };
 
   let badge = null;
+  let dotEl = null;
   let statusEl = null;
+  let sepEl = null;
   let hintEl = null;
   let replayInProgress = false;
 
@@ -23,13 +25,21 @@
     badge.setAttribute('role', 'status');
     badge.setAttribute('aria-live', 'polite');
 
+    dotEl = document.createElement('span');
+    dotEl.className = 'openseed-dot';
+
     statusEl = document.createElement('span');
     statusEl.className = 'openseed-status';
+
+    sepEl = document.createElement('span');
+    sepEl.className = 'openseed-sep';
 
     hintEl = document.createElement('span');
     hintEl.className = 'openseed-hint';
 
+    badge.appendChild(dotEl);
     badge.appendChild(statusEl);
+    badge.appendChild(sepEl);
     badge.appendChild(hintEl);
     document.body.appendChild(badge);
   }
@@ -37,7 +47,7 @@
   function updateBadge(state, extra) {
     if (!badge) return;
     badge.dataset.state = state;
-    statusEl.textContent = STATE_LABELS[state] || '🌱';
+    statusEl.textContent = STATE_LABELS[state] || 'SEED';
     hintEl.textContent = extra || STATE_HINTS[state] || '';
   }
 
