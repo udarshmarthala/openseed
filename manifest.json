@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Open Seed",
+  "version": "0.1.0",
+  "description": "Task automation that learns by watching you work.",
+
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "src/brain.js",
+        "src/seed.js",
+        "src/tree.js",
+        "src/ui.js"
+      ],
+      "css": ["styles/badge.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Open Seed"
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
