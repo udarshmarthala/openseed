@@ -11,7 +11,7 @@ window.__openseedInitialized = true;
 
   let currentSequence = [];
   let recording = true;
-  const inputTimers = new WeakMap();
+  const inputTimers = new Map();
 
   // --- Stable selector builder ---
 
@@ -46,6 +46,29 @@ window.__openseedInitialized = true;
     notifyUI();
   }
 
+  function clearInputTimers() {
+    inputTimers.forEach(timerId => clearTimeout(timerId));
+    inputTimers.clear();
+  }
+
+  function flushPendingInput(el) {
+    if (!inputTimers.has(el)) return;
+    clearTimeout(inputTimers.get(el));
+    inputTimers.delete(el);
+    pushAction({
+      type: 'input',
+      selector: getSelector(el),
+      value: el.value,
+      tagName: el.tagName.toLowerCase(),
+      url: location.href,
+      timestamp: Date.now(),
+    });
+  }
+
+  function flushAllPendingInputs() {
+    Array.from(inputTimers.keys()).forEach(flushPendingInput);
+  }
+
   function captureAction(e) {
     if (!recording) return;
 
@@ -70,6 +93,10 @@ window.__openseedInitialized = true;
       return;
     }
 
+    if (e.type === 'submit') {
+      flushAllPendingInputs();
+    }
+
     const action = {
       type: e.type,
       selector: getSelector(el),
@@ -86,6 +113,7 @@ window.__openseedInitialized = true;
   // --- Session save ---
 
   function finalizeSession() {
+    flushAllPendingInputs();
     if (!currentSequence.length) return;
     if (!window.OpenSeedBrain) return;
 
@@ -115,8 +143,8 @@ window.__openseedInitialized = true;
 
   window.OpenSeedRecorder = {
     getSequence: () => [...currentSequence],
-    clearSequence: () => { currentSequence = []; notifyUI(); },
-    pause: () => { recording = false; },
+    clearSequence: () => { currentSequence = []; clearInputTimers(); notifyUI(); },
+    pause: () => { recording = false; clearInputTimers(); },
     resume: () => { recording = true; },
     finalizeSession,
   };
@@ -129,12 +157,17 @@ window.__openseedInitialized = true;
     });
 
     window.addEventListener('beforeunload', finalizeSession);
+    window.addEventListener('pagehide', finalizeSession);
 
     chrome.runtime.onMessage.addListener((msg) => {
-      if (msg.type === 'OPENSEED_PAUSE') recording = false;
+      if (msg.type === 'OPENSEED_PAUSE') {
+        recording = false;
+        clearInputTimers();
+      }
       if (msg.type === 'OPENSEED_RESUME') recording = true;
       if (msg.type === 'OPENSEED_CLEAR') {
         currentSequence = [];
+        clearInputTimers();
         notifyUI();
       }
     });
