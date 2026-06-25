@@ -117,6 +117,67 @@
     .ctrl-btn.active { color: var(--accent); }
     .ctrl-btn.danger:hover { color: var(--danger); }
 
+    /* ── Search / filters ── */
+    .toolbar {
+      padding: 10px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      outline: none;
+    }
+
+    .search-input::placeholder {
+      color: var(--muted);
+    }
+
+    .search-input:focus {
+      border-color: rgba(200, 255, 74, 0.35);
+      box-shadow: 0 0 0 2px rgba(200, 255, 74, 0.08);
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 5px 9px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: none;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .filter-btn:hover {
+      color: var(--text);
+      border-color: rgba(200, 255, 74, 0.18);
+    }
+
+    .filter-btn.active {
+      color: var(--accent);
+      border-color: rgba(200, 255, 74, 0.35);
+      background: rgba(200, 255, 74, 0.06);
+    }
+
     /* ── Task list ── */
     #task-list {
       max-height: 340px;
@@ -300,7 +361,21 @@
 
   <div class="controls">
     <button class="ctrl-btn" id="btn-pause">⏸ Pause</button>
+    <button class="ctrl-btn" id="btn-export">Export</button>
+    <button class="ctrl-btn" id="btn-import">Import</button>
     <button class="ctrl-btn danger" id="btn-clear">Clear session</button>
+  </div>
+
+  <input id="import-file" type="file" accept="application/json" hidden>
+
+  <div class="toolbar">
+    <input id="task-search" class="search-input" type="search" placeholder="Search tasks" autocomplete="off" spellcheck="false">
+    <div class="filter-group" role="tablist" aria-label="Task filters">
+      <button class="filter-btn active" data-filter="all" type="button">All</button>
+      <button class="filter-btn" data-filter="seed" type="button">Seed</button>
+      <button class="filter-btn" data-filter="sprout" type="button">Sprout</button>
+      <button class="filter-btn" data-filter="tree" type="button">Tree</button>
+    </div>
   </div>
 
   <div id="task-list">
