@@ -11,6 +11,7 @@
   let badge = null;
   let dotEl = null;
   let statusEl = null;
+  let countEl = null;
   let sepEl = null;
   let hintEl = null;
   let replayInProgress = false;
@@ -31,6 +32,9 @@
     statusEl = document.createElement('span');
     statusEl.className = 'openseed-status';
 
+    countEl = document.createElement('span');
+    countEl.className = 'openseed-count';
+
     sepEl = document.createElement('span');
     sepEl.className = 'openseed-sep';
 
@@ -39,15 +43,18 @@
 
     badge.appendChild(dotEl);
     badge.appendChild(statusEl);
+    badge.appendChild(countEl);
     badge.appendChild(sepEl);
     badge.appendChild(hintEl);
     document.body.appendChild(badge);
   }
 
-  function updateBadge(state, extra) {
+  function updateBadge(state, extra, sequenceLength = 0) {
     if (!badge) return;
     badge.dataset.state = state;
     statusEl.textContent = STATE_LABELS[state] || 'SEED';
+    countEl.textContent = sequenceLength > 0 ? `${sequenceLength} steps` : '';
+    countEl.hidden = sequenceLength <= 0;
     hintEl.textContent = extra || STATE_HINTS[state] || '';
   }
 
@@ -66,8 +73,10 @@
   }
 
   function refresh() {
+    const recorder = window.OpenSeedRecorder;
+    const sequenceLength = recorder ? recorder.getSequence().length : 0;
     const state = currentTaskState();
-    updateBadge(state);
+    updateBadge(state, '', sequenceLength);
   }
 
   // --- Enter trigger ---
@@ -93,7 +102,7 @@
     if (document.activeElement && document.activeElement.isContentEditable) return;
 
     if (state === 'sprout') {
-      updateBadge('sprout', '🌿 Keep repeating to unlock auto-run');
+      updateBadge('sprout', '🌿 Keep repeating to unlock auto-run', seq.length);
       setTimeout(refresh, 2000);
       return;
     }
@@ -106,7 +115,7 @@
 
   async function startReplay(taskId, seq) {
     replayInProgress = true;
-    updateBadge('tree', '▶ Running…');
+    updateBadge('tree', '▶ Running…', seq.length);
     window.OpenSeedRecorder.pause();
 
     try {
@@ -133,11 +142,11 @@
 
   document.addEventListener('openseed:replay-step', (e) => {
     const { step, total } = e.detail;
-    updateBadge('tree', `▶ Step ${step}/${total}`);
+    updateBadge('tree', `▶ Step ${step}/${total}`, total);
   });
 
   document.addEventListener('openseed:replay-done', () => {
-    updateBadge('tree', '✓ Done');
+    updateBadge('tree', '✓ Done', 0);
     setTimeout(refresh, 1500);
   });
 
