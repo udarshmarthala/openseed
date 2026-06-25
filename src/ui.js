@@ -77,12 +77,18 @@
     const taskId = brain.generateTaskId(location.href, seq);
     const { state } = brain.getConfidence(taskId);
 
-    if (state !== 'tree') return;
-
     // Don't intercept Enter inside text inputs / textareas / contenteditable
     const tag = document.activeElement && document.activeElement.tagName.toLowerCase();
     if (['input', 'textarea', 'select'].includes(tag)) return;
     if (document.activeElement && document.activeElement.isContentEditable) return;
+
+    if (state === 'sprout') {
+      updateBadge('sprout', '🌿 Keep repeating to unlock auto-run');
+      setTimeout(refresh, 2000);
+      return;
+    }
+
+    if (state !== 'tree') return;
 
     e.preventDefault();
     startReplay(taskId, seq);

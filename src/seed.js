@@ -1,9 +1,17 @@
+// Guard against double-init on SPA re-injection
+if (window.__openseedInitialized) return;  // eslint-disable-line no-labels
+window.__openseedInitialized = true;
+
 (() => {
   'use strict';
 
   const RECORDED_EVENTS = ['click', 'input', 'change', 'submit'];
+  const MAX_SEQUENCE = 50;
+  const INPUT_DEBOUNCE_MS = 500;
+
   let currentSequence = [];
   let recording = true;
+  const inputTimers = new WeakMap();
 
   // --- Stable selector builder ---
 
@@ -32,28 +40,47 @@
 
   // --- Event capture ---
 
+  function pushAction(action) {
+    if (currentSequence.length >= MAX_SEQUENCE) return;
+    currentSequence.push(action);
+    notifyUI();
+  }
+
   function captureAction(e) {
     if (!recording) return;
 
     const el = e.target;
     if (!el || el.nodeType !== Node.ELEMENT_NODE) return;
-
-    // Ignore clicks inside the Open Seed badge
     if (el.closest && el.closest('#openseed-badge')) return;
+
+    // Debounce input: only record final value after typing stops
+    if (e.type === 'input') {
+      if (inputTimers.has(el)) clearTimeout(inputTimers.get(el));
+      inputTimers.set(el, setTimeout(() => {
+        inputTimers.delete(el);
+        pushAction({
+          type: 'input',
+          selector: getSelector(el),
+          value: el.value,
+          tagName: el.tagName.toLowerCase(),
+          url: location.href,
+          timestamp: Date.now(),
+        });
+      }, INPUT_DEBOUNCE_MS));
+      return;
+    }
 
     const action = {
       type: e.type,
       selector: getSelector(el),
-      value: (e.type === 'input' || e.type === 'change') ? el.value : undefined,
       tagName: el.tagName.toLowerCase(),
       url: location.href,
       timestamp: Date.now(),
     };
 
-    if (action.value === undefined) delete action.value;
+    if (e.type === 'change') action.value = el.value;
 
-    currentSequence.push(action);
-    notifyUI();
+    pushAction(action);
   }
 
   // --- Session save ---
@@ -70,13 +97,13 @@
       incrementRun(taskId);
     } else {
       saveTask(taskId, currentSequence, location.href);
-      incrementRun(taskId); // first observation counts as run 1
+      incrementRun(taskId); // first observation = run 1
     }
 
     notifyUI();
   }
 
-  // --- Notify ui.js to refresh badge ---
+  // --- Notify ui.js ---
 
   function notifyUI() {
     document.dispatchEvent(new CustomEvent('openseed:update', {
@@ -84,7 +111,7 @@
     }));
   }
 
-  // --- Public API for ui.js / tree.js ---
+  // --- Public API ---
 
   window.OpenSeedRecorder = {
     getSequence: () => [...currentSequence],
@@ -94,7 +121,7 @@
     finalizeSession,
   };
 
-  // --- Wire up listeners ---
+  // --- Wire up ---
 
   function init() {
     RECORDED_EVENTS.forEach(type => {
@@ -103,7 +130,6 @@
 
     window.addEventListener('beforeunload', finalizeSession);
 
-    // Listen for messages from popup / service-worker
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.type === 'OPENSEED_PAUSE') recording = false;
       if (msg.type === 'OPENSEED_RESUME') recording = true;

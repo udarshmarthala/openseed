@@ -20,6 +20,12 @@ async function loadTasks() {
   const tab = await getActiveTab();
   if (!tab) return [];
 
+  // chrome://, about:, extension pages block scripting
+  if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('about:')) {
+    renderUnavailable();
+    return [];
+  }
+
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -47,6 +53,11 @@ function shortUrl(url) {
   } catch {
     return url;
   }
+}
+
+function renderUnavailable() {
+  document.getElementById('task-list').innerHTML =
+    '<div class="empty">Open Seed can\'t run on this page.<br>Navigate to any website to see tasks.</div>';
 }
 
 function renderTasks(tasks) {
